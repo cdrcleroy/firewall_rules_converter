@@ -1,7 +1,7 @@
 # 🔥 Firewall Rules Converter
 
 ## 📌 Description
-Firewall Rules Converter est un outil permettant d'analyser et de convertir des fichiers XML contenant des règles de firewall en un fichier CSV compatible avec Excel. Il offre la possibilité de croiser ces règles avec des fichiers d'adresses IP, de services et de positions.
+Firewall Rules Converter est un outil permettant d'analyser et de convertir des fichiers XML contenant des règles de firewall en un fichier CSV compatible avec Excel. Il offre la possibilité de croiser ces règles avec des fichiers d'adresses IP, de services et de positions (les id de chaque règle).
 
 ## 🚀 Fonctionnalités
 - 📂 Chargement d'un fichier XML contenant les règles de firewall.
@@ -17,10 +17,10 @@ Aucune installation spécifique n'est requise. L'outil est fourni sous forme d'u
 
 ## 💻 Utilisation
 1️⃣ **Lancer l'outil** :
-   - Double-cliquez sur `firewall_rules_menu.exe`
+   - Double-cliquez sur `firewall_rules_converter.exe`
    - Ou ouvrez un terminal et exécutez :
      ```sh
-     firewall_rules_menu.exe
+     firewall_rules_converter.exe
      ```
 
 2️⃣ **Sélectionner les fichiers** :
@@ -43,7 +43,7 @@ Permet de croiser les réseaux définis dans les règles avec leurs adresses IP 
 ### 📡 **Fichier de services (XML)**
 Associe les services référencés dans les règles à leurs détails (ports et protocoles).
 
-### 🔢 **Fichier de positions (texte brut)**
+### 🔢 **Fichier de positions (texte brut ou XML)**
 Associe chaque règle à un ID et une position définis dans l'export du firewall.
 
 ## 📂 Structure du CSV généré
