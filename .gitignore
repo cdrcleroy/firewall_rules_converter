@@ -1,6 +1,9 @@
 # Ignorer les fichiers CSV
 *.csv
 
+# Ignorer les fichiers XML
+*.xml
+
 # Ignorer les fichiers de logs
 *.log
 

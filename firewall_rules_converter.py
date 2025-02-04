@@ -1,3 +1,9 @@
+"""
+🔥 Firewall Rules Converter v1.0 🔥
+Développé par Cedric Leroy - 2025
+Contact : cdrc.leroy@gmail.com
+"""
+
 import tkinter as tk
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
@@ -5,11 +11,23 @@ import csv
 import re
 import time
 from tqdm import tqdm
+import sys
+
+WATERMARK = "© 2025 - Développé par Cedric Leroy - firewall_rules_converter"
+
+def get_watermark():
+    return WATERMARK
 
 def select_file(file_type):
     """Ouvre un explorateur de fichiers pour sélectionner un fichier."""
     file_path = filedialog.askopenfilename(title=f"Sélectionner le fichier {file_type}", filetypes=[("Fichiers", "*.*")])
     return file_path if file_path else None
+
+def select_output_file():
+    """Ouvre un explorateur de fichiers pour choisir l'emplacement et le nom du fichier CSV de sortie."""
+    print("Choisissez un emplacement et un nom pour le fichier CSV (nom par défaut : firewall_rules.csv)")
+    file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], title="Enregistrer le fichier CSV")
+    return file_path if file_path else "firewall_rules.csv"
 
 def get_text(element, default=""):
     """Récupère le texte d'un élément XML avec une valeur par défaut."""
@@ -135,25 +153,27 @@ def save_to_csv(rules, output_file):
 
 def main():
     print("=== Menu de Chargement des Fichiers Firewall ===")
+    print("Choisissez un fichier de règles firewall :")
     
     firewall_rules_file = select_file("des règles firewall")
-    output_file = input("Entrez le nom du fichier CSV de sortie (par défaut: firewall_rules.csv) : ") or "firewall_rules.csv"
+    if not firewall_rules_file:
+        print("Aucun fichier XML sélectionné. Fin du programme.")
+        sys.exit(0)
     
-    load_positions = input("Voulez-vous charger un fichier de positions ? (O/N) : ").strip().lower()
+    load_positions = input("Voulez-vous charger un fichier des id des règles ? (O/N) : ").strip().lower()
     position_data = parse_positions(select_file("des positions")) if load_positions == 'o' else {}
     
-    load_ip = input("Voulez-vous charger un fichier d'IP ? (O/N) : ").strip().lower()
+    load_ip = input("Voulez-vous charger un fichier d'objets et IP ? (O/N) : ").strip().lower()
     ip_data = parse_ip_hosts(select_file("des IP")) if load_ip == 'o' else {}
     ip_loaded = load_ip == 'o'
     
     load_services = input("Voulez-vous charger un fichier de services ? (O/N) : ").strip().lower()
     service_data = parse_services(select_file("des Services")) if load_services == 'o' else {}
     
-    if firewall_rules_file:
-        rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data, position_data, ip_loaded)
-        save_to_csv(rules, output_file)
-    else:
-        print("Aucun fichier XML sélectionné. Fin du programme.")
+    output_file = select_output_file()
+    
+    rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data, position_data, ip_loaded)
+    save_to_csv(rules, output_file)
     
 if __name__ == "__main__":
     tk.Tk().withdraw()
