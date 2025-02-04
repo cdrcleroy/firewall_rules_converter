@@ -3,61 +3,21 @@ from tkinter import filedialog
 import xml.etree.ElementTree as ET
 import csv
 import re
+import time
+from tqdm import tqdm
 
 def select_file(file_type):
     """Ouvre un explorateur de fichiers pour sélectionner un fichier."""
     file_path = filedialog.askopenfilename(title=f"Sélectionner le fichier {file_type}", filetypes=[("Fichiers", "*.*")])
     return file_path if file_path else None
 
-def parse_ip_hosts(xml_file):
-    """Analyse le fichier XML des adresses IP et retourne un dictionnaire associant les noms aux IPs."""
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-    ip_data = {}
-    
-    for host in root.findall(".//IPHost"):
-        name = host.findtext("Name", "")
-        ip_address = host.findtext("IPAddress", "")
-        start_ip = host.findtext("StartIPAddress", "")
-        end_ip = host.findtext("EndIPAddress", "")
-        
-        if ip_address:
-            ip_data[name] = ip_address
-        elif start_ip and end_ip:
-            ip_data[name] = f"{start_ip} - {end_ip}"
-    
-    return ip_data
+def get_text(element, default=""):
+    """Récupère le texte d'un élément XML avec une valeur par défaut."""
+    return element.text if element is not None else default
 
-def parse_services(xml_file):
-    """Analyse le fichier XML des services et retourne un dictionnaire associant les services à leurs détails."""
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-    service_data = {}
-    
-    for service in root.findall(".//Services"):
-        name = service.findtext("Name", "")
-        details = []
-        for detail in service.findall(".//ServiceDetail"):
-            destination_port = detail.findtext("DestinationPort", "N/A")
-            protocol = detail.findtext("Protocol", detail.findtext("ProtocolName", "N/A"))
-            details.append((protocol, destination_port))
-        
-        service_data[name] = details
-    
-    return service_data
-
-def parse_positions(position_file):
-    """Analyse le fichier texte des positions et retourne un dictionnaire associant la position à l'ID."""
-    position_data = {}
-    
-    with open(position_file, "r", encoding="utf-8") as file:
-        for line in file:
-            match = re.search(r"--id (\d+) --position (\d+)", line)
-            if match:
-                rule_id, position = match.groups()
-                position_data[int(position)] = rule_id
-    
-    return position_data
+def get_all_texts(elements):
+    """Retourne une liste des textes de plusieurs éléments XML."""
+    return [el.text for el in elements if el.text]
 
 def clean_list(value_list):
     """Supprime les doublons et enlève 'N/A' si d'autres valeurs sont présentes."""
@@ -73,16 +33,56 @@ def clean_ip_list(ip_list, ip_loaded):
     cleaned_list = list(dict.fromkeys(ip_list))
     return ["any"] if "any" in cleaned_list else cleaned_list
 
+def parse_ip_hosts(xml_file):
+    """Analyse le fichier XML des adresses IP et retourne un dictionnaire associant les noms aux IPs."""
+    print("Chargement du fichier d'IP...")
+    time.sleep(0.5)
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    return {
+        get_text(host.find("Name")): get_text(host.find("IPAddress"), f"{get_text(host.find('StartIPAddress'))} - {get_text(host.find('EndIPAddress'))}")
+        for host in root.findall(".//IPHost")
+    }
+
+def parse_services(xml_file):
+    """Analyse le fichier XML des services et retourne un dictionnaire associant les services à leurs détails."""
+    print("Chargement du fichier des services...")
+    time.sleep(0.5)
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    return {
+        get_text(service.find("Name")): [
+            (get_text(detail.find("Protocol"), get_text(detail.find("ProtocolName"), "N/A")),
+             get_text(detail.find("DestinationPort"), "N/A"))
+            for detail in service.findall(".//ServiceDetail")
+        ]
+        for service in root.findall(".//Services")
+    }
+
+def parse_positions(position_file):
+    """Analyse le fichier texte des positions et retourne un dictionnaire associant la position à l'ID."""
+    print("Chargement du fichier des positions...")
+    time.sleep(0.5)
+    position_data = {}
+    with open(position_file, "r", encoding="utf-8") as file:
+        for line in file:
+            match = re.search(r"--id (\d+) --position (\d+)", line)
+            if match:
+                position_data[int(match.group(2))] = match.group(1)
+    return position_data
+
 def parse_firewall_rules(xml_file, ip_data, service_data, position_data, ip_loaded):
     """Analyse le fichier XML et extrait les règles de firewall en les croisant avec les IPs, services et positions."""
+    print("Traitement des règles de firewall...")
     tree = ET.parse(xml_file)
     root = tree.getroot()
     rules = []
+    firewall_rules = list(root.findall(".//FirewallRule"))
     
-    for position, rule in enumerate(root.findall(".//FirewallRule"), start=1):
-        source_networks = [net.text for net in rule.findall(".//SourceNetworks/Network")]
-        destination_networks = [net.text for net in rule.findall(".//DestinationNetworks/Network")]
-        services = [srv.text for srv in rule.findall(".//Services/Service")]
+    for position, rule in enumerate(tqdm(firewall_rules, desc="Analyse des règles", unit="règle"), start=1):
+        source_networks = get_all_texts(rule.findall(".//SourceNetworks/Network"))
+        destination_networks = get_all_texts(rule.findall(".//DestinationNetworks/Network"))
+        services = get_all_texts(rule.findall(".//Services/Service"))
         
         source_ips = clean_ip_list([ip_data.get(net, "any") for net in source_networks], ip_loaded)
         destination_ips = clean_ip_list([ip_data.get(net, "any") for net in destination_networks], ip_loaded)
@@ -94,17 +94,17 @@ def parse_firewall_rules(xml_file, ip_data, service_data, position_data, ip_load
         
         rule_data = {
             "ID": position_data.get(position, "N/A"),
-            "Name": rule.findtext("Name", ""),
-            "Description": rule.findtext("Description", ""),
-            "IPFamily": rule.findtext("IPFamily", ""),
-            "Status": rule.findtext("Status", ""),
-            "PolicyType": rule.findtext("PolicyType", ""),
-            "Action": rule.find(".//Action").text if rule.find(".//Action") is not None else "",
-            "LogTraffic": rule.find(".//LogTraffic").text if rule.find(".//LogTraffic") is not None else "",
-            "SourceZones": "; ".join([zone.text for zone in rule.findall(".//SourceZones/Zone")]),
-            "DestinationZones": "; ".join([zone.text for zone in rule.findall(".//DestinationZones/Zone")]),
-            "Schedule": rule.find(".//Schedule").text if rule.find(".//Schedule") is not None else "",
-            "Exclusions": "",  # Placeholder for exclusions if needed
+            "Name": get_text(rule.find("Name")),
+            "Description": get_text(rule.find("Description")),
+            "IPFamily": get_text(rule.find("IPFamily")),
+            "Status": get_text(rule.find("Status")),
+            "PolicyType": get_text(rule.find("PolicyType")),
+            "Action": get_text(rule.find(".//Action")),
+            "LogTraffic": get_text(rule.find(".//LogTraffic")),
+            "SourceZones": "; ".join(get_all_texts(rule.findall(".//SourceZones/Zone"))),
+            "DestinationZones": "; ".join(get_all_texts(rule.findall(".//DestinationZones/Zone"))),
+            "Schedule": get_text(rule.find(".//Schedule")),
+            "Exclusions": "",
             "SourceNetworks": "; ".join(source_networks),
             "Source Network IP": "; ".join(source_ips),
             "DestinationNetworks": "; ".join(destination_networks),
@@ -115,6 +115,7 @@ def parse_firewall_rules(xml_file, ip_data, service_data, position_data, ip_load
         }
         rules.append(rule_data)
     
+    print("Traitement terminé avec succès.")
     return rules
 
 def save_to_csv(rules, output_file):
@@ -136,6 +137,7 @@ def main():
     print("=== Menu de Chargement des Fichiers Firewall ===")
     
     firewall_rules_file = select_file("des règles firewall")
+    output_file = input("Entrez le nom du fichier CSV de sortie (par défaut: firewall_rules.csv) : ") or "firewall_rules.csv"
     
     load_positions = input("Voulez-vous charger un fichier de positions ? (O/N) : ").strip().lower()
     position_data = parse_positions(select_file("des positions")) if load_positions == 'o' else {}
@@ -149,7 +151,7 @@ def main():
     
     if firewall_rules_file:
         rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data, position_data, ip_loaded)
-        save_to_csv(rules, "firewall_rules.csv")
+        save_to_csv(rules, output_file)
     else:
         print("Aucun fichier XML sélectionné. Fin du programme.")
     
