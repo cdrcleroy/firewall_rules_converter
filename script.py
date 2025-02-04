@@ -2,10 +2,11 @@ import tkinter as tk
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
 import csv
+import re
 
 def select_file(file_type):
     """Ouvre un explorateur de fichiers pour sélectionner un fichier."""
-    file_path = filedialog.askopenfilename(title=f"Sélectionner le fichier {file_type}", filetypes=[("Fichiers XML", "*.xml"), ("Tous les fichiers", "*.*")])
+    file_path = filedialog.askopenfilename(title=f"Sélectionner le fichier {file_type}", filetypes=[("Fichiers", "*.*")])
     return file_path if file_path else None
 
 def parse_ip_hosts(xml_file):
@@ -45,6 +46,19 @@ def parse_services(xml_file):
     
     return service_data
 
+def parse_positions(position_file):
+    """Analyse le fichier texte des positions et retourne un dictionnaire associant la position à l'ID."""
+    position_data = {}
+    
+    with open(position_file, "r", encoding="utf-8") as file:
+        for line in file:
+            match = re.search(r"--id (\d+) --position (\d+)", line)
+            if match:
+                rule_id, position = match.groups()
+                position_data[int(position)] = rule_id
+    
+    return position_data
+
 def clean_list(value_list):
     """Supprime les doublons et enlève 'N/A' si d'autres valeurs sont présentes."""
     cleaned_list = list(dict.fromkeys(value_list))
@@ -52,24 +66,26 @@ def clean_list(value_list):
         cleaned_list.remove("N/A")
     return cleaned_list
 
-def clean_ip_list(ip_list):
-    """Si 'any' est présent, ne conserve que 'any'."""
+def clean_ip_list(ip_list, ip_loaded):
+    """Si 'any' est présent et qu'un fichier d'IP est chargé, ne conserve que 'any'. Si aucun fichier IP n'est chargé, retourne 'N/A'."""
+    if not ip_loaded:
+        return ["N/A"]
     cleaned_list = list(dict.fromkeys(ip_list))
     return ["any"] if "any" in cleaned_list else cleaned_list
 
-def parse_firewall_rules(xml_file, ip_data, service_data):
-    """Analyse le fichier XML et extrait les règles de firewall en les croisant avec les IPs et services."""
+def parse_firewall_rules(xml_file, ip_data, service_data, position_data, ip_loaded):
+    """Analyse le fichier XML et extrait les règles de firewall en les croisant avec les IPs, services et positions."""
     tree = ET.parse(xml_file)
     root = tree.getroot()
     rules = []
     
-    for rule in root.findall(".//FirewallRule"):
+    for position, rule in enumerate(root.findall(".//FirewallRule"), start=1):
         source_networks = [net.text for net in rule.findall(".//SourceNetworks/Network")]
         destination_networks = [net.text for net in rule.findall(".//DestinationNetworks/Network")]
         services = [srv.text for srv in rule.findall(".//Services/Service")]
         
-        source_ips = clean_ip_list([ip_data.get(net, "any") for net in source_networks])
-        destination_ips = clean_ip_list([ip_data.get(net, "any") for net in destination_networks])
+        source_ips = clean_ip_list([ip_data.get(net, "any") for net in source_networks], ip_loaded)
+        destination_ips = clean_ip_list([ip_data.get(net, "any") for net in destination_networks], ip_loaded)
         service_details = [service_data.get(srv, [("N/A", "N/A")]) for srv in services]
         
         flat_service_details = [item for sublist in service_details for item in sublist]
@@ -77,7 +93,7 @@ def parse_firewall_rules(xml_file, ip_data, service_data):
         protocols = clean_list([d[0] for d in flat_service_details])
         
         rule_data = {
-            "ID": rule.attrib.get("transactionid", "N/A"),
+            "ID": position_data.get(position, "N/A"),
             "Name": rule.findtext("Name", ""),
             "Description": rule.findtext("Description", ""),
             "IPFamily": rule.findtext("IPFamily", ""),
@@ -121,22 +137,18 @@ def main():
     
     firewall_rules_file = select_file("des règles firewall")
     
+    load_positions = input("Voulez-vous charger un fichier de positions ? (O/N) : ").strip().lower()
+    position_data = parse_positions(select_file("des positions")) if load_positions == 'o' else {}
+    
     load_ip = input("Voulez-vous charger un fichier d'IP ? (O/N) : ").strip().lower()
-    ip_data = {}
-    if load_ip == 'o':
-        ip_file = select_file("des IP")
-        if ip_file:
-            ip_data = parse_ip_hosts(ip_file)
+    ip_data = parse_ip_hosts(select_file("des IP")) if load_ip == 'o' else {}
+    ip_loaded = load_ip == 'o'
     
     load_services = input("Voulez-vous charger un fichier de services ? (O/N) : ").strip().lower()
-    service_data = {}
-    if load_services == 'o':
-        service_file = select_file("des Services")
-        if service_file:
-            service_data = parse_services(service_file)
+    service_data = parse_services(select_file("des Services")) if load_services == 'o' else {}
     
     if firewall_rules_file:
-        rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data)
+        rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data, position_data, ip_loaded)
         save_to_csv(rules, "firewall_rules.csv")
     else:
         print("Aucun fichier XML sélectionné. Fin du programme.")
