@@ -53,7 +53,7 @@ def clean_ip_list(ip_list, ip_loaded):
 
 def parse_ip_hosts(xml_file):
     """Analyse le fichier XML des adresses IP et retourne un dictionnaire associant les noms aux IPs."""
-    print("Chargement du fichier d'IP...")
+    print("Chargement du fichier d'objets réseaux...")
     time.sleep(0.5)
     tree = ET.parse(xml_file)
     root = tree.getroot()
@@ -79,7 +79,7 @@ def parse_services(xml_file):
 
 def parse_positions(position_file):
     """Analyse le fichier texte des positions et retourne un dictionnaire associant la position à l'ID."""
-    print("Chargement du fichier des positions...")
+    print("Chargement du fichier des id...")
     time.sleep(0.5)
     position_data = {}
     with open(position_file, "r", encoding="utf-8") as file:
@@ -163,7 +163,7 @@ def main():
     load_positions = input("Voulez-vous charger un fichier des id des règles ? (O/N) : ").strip().lower()
     position_data = parse_positions(select_file("des positions")) if load_positions == 'o' else {}
     
-    load_ip = input("Voulez-vous charger un fichier d'objets et IP ? (O/N) : ").strip().lower()
+    load_ip = input("Voulez-vous charger un fichier d'objets réseaux ? (O/N) : ").strip().lower()
     ip_data = parse_ip_hosts(select_file("des IP")) if load_ip == 'o' else {}
     ip_loaded = load_ip == 'o'
     
