@@ -27,14 +27,38 @@ def parse_ip_hosts(xml_file):
     
     return ip_data
 
-def clean_ip_list(ip_list):
-    """Supprime les doublons et ne garde qu'un seul 'any' si présent."""
-    if "any" in ip_list:
-        return ["any"]
-    return list(dict.fromkeys(ip_list))
+def parse_services(xml_file):
+    """Analyse le fichier XML des services et retourne un dictionnaire associant les services à leurs détails."""
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    service_data = {}
+    
+    for service in root.findall(".//Services"):
+        name = service.findtext("Name", "")
+        details = []
+        for detail in service.findall(".//ServiceDetail"):
+            destination_port = detail.findtext("DestinationPort", "N/A")
+            protocol = detail.findtext("Protocol", detail.findtext("ProtocolName", "N/A"))
+            details.append((protocol, destination_port))
+        
+        service_data[name] = details
+    
+    return service_data
 
-def parse_firewall_rules(xml_file, ip_data):
-    """Analyse le fichier XML et extrait les règles de firewall en les croisant avec les IPs."""
+def clean_list(value_list):
+    """Supprime les doublons et enlève 'N/A' si d'autres valeurs sont présentes."""
+    cleaned_list = list(dict.fromkeys(value_list))
+    if "N/A" in cleaned_list and len(cleaned_list) > 1:
+        cleaned_list.remove("N/A")
+    return cleaned_list
+
+def clean_ip_list(ip_list):
+    """Si 'any' est présent, ne conserve que 'any'."""
+    cleaned_list = list(dict.fromkeys(ip_list))
+    return ["any"] if "any" in cleaned_list else cleaned_list
+
+def parse_firewall_rules(xml_file, ip_data, service_data):
+    """Analyse le fichier XML et extrait les règles de firewall en les croisant avec les IPs et services."""
     tree = ET.parse(xml_file)
     root = tree.getroot()
     rules = []
@@ -42,27 +66,36 @@ def parse_firewall_rules(xml_file, ip_data):
     for rule in root.findall(".//FirewallRule"):
         source_networks = [net.text for net in rule.findall(".//SourceNetworks/Network")]
         destination_networks = [net.text for net in rule.findall(".//DestinationNetworks/Network")]
+        services = [srv.text for srv in rule.findall(".//Services/Service")]
         
         source_ips = clean_ip_list([ip_data.get(net, "any") for net in source_networks])
         destination_ips = clean_ip_list([ip_data.get(net, "any") for net in destination_networks])
+        service_details = [service_data.get(srv, [("N/A", "N/A")]) for srv in services]
+        
+        flat_service_details = [item for sublist in service_details for item in sublist]
+        destination_ports = clean_list([d[1] for d in flat_service_details])
+        protocols = clean_list([d[0] for d in flat_service_details])
         
         rule_data = {
+            "ID": rule.attrib.get("transactionid", "N/A"),
             "Name": rule.findtext("Name", ""),
             "Description": rule.findtext("Description", ""),
             "IPFamily": rule.findtext("IPFamily", ""),
             "Status": rule.findtext("Status", ""),
-            "Position": rule.findtext("Position", ""),
             "PolicyType": rule.findtext("PolicyType", ""),
             "Action": rule.find(".//Action").text if rule.find(".//Action") is not None else "",
             "LogTraffic": rule.find(".//LogTraffic").text if rule.find(".//LogTraffic") is not None else "",
+            "SourceZones": "; ".join([zone.text for zone in rule.findall(".//SourceZones/Zone")]),
+            "DestinationZones": "; ".join([zone.text for zone in rule.findall(".//DestinationZones/Zone")]),
             "Schedule": rule.find(".//Schedule").text if rule.find(".//Schedule") is not None else "",
-            "SourceZones": " | ".join([zone.text for zone in rule.findall(".//SourceZones/Zone")]),
-            "DestinationZones": " | ".join([zone.text for zone in rule.findall(".//DestinationZones/Zone")]),
-            "SourceNetworks": " | ".join(source_networks),
-            "SourceIP": " | ".join(source_ips),
-            "DestinationNetworks": " | ".join(destination_networks),
-            "DestinationIP": " | ".join(destination_ips),
-            "Services": " | ".join([service.text for service in rule.findall(".//Services/Service")])
+            "Exclusions": "",  # Placeholder for exclusions if needed
+            "SourceNetworks": "; ".join(source_networks),
+            "Source Network IP": "; ".join(source_ips),
+            "DestinationNetworks": "; ".join(destination_networks),
+            "Destination Network IP": "; ".join(destination_ips),
+            "Services": "; ".join(services),
+            "Destination Ports": "; ".join(destination_ports),
+            "Protocols": "; ".join(protocols)
         }
         rules.append(rule_data)
     
@@ -74,7 +107,7 @@ def save_to_csv(rules, output_file):
         print("Aucune règle à sauvegarder.")
         return
     
-    fieldnames = rules[0].keys()
+    fieldnames = ["ID", "Name", "Description", "IPFamily", "Status", "PolicyType", "Action", "LogTraffic", "SourceZones", "DestinationZones", "Schedule", "Exclusions", "SourceNetworks", "Source Network IP", "DestinationNetworks", "Destination Network IP", "Services", "Destination Ports", "Protocols"]
     
     with open(output_file, "w", newline="", encoding="utf-8-sig") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
@@ -86,11 +119,8 @@ def save_to_csv(rules, output_file):
 def main():
     print("=== Menu de Chargement des Fichiers Firewall ===")
     
-    # Charger le fichier principal XML
-    input("Appuyez sur Entrée pour sélectionner le fichier XML principal...")
     firewall_rules_file = select_file("des règles firewall")
     
-    # Charger le fichier des IP (optionnel)
     load_ip = input("Voulez-vous charger un fichier d'IP ? (O/N) : ").strip().lower()
     ip_data = {}
     if load_ip == 'o':
@@ -98,13 +128,19 @@ def main():
         if ip_file:
             ip_data = parse_ip_hosts(ip_file)
     
+    load_services = input("Voulez-vous charger un fichier de services ? (O/N) : ").strip().lower()
+    service_data = {}
+    if load_services == 'o':
+        service_file = select_file("des Services")
+        if service_file:
+            service_data = parse_services(service_file)
+    
     if firewall_rules_file:
-        rules = parse_firewall_rules(firewall_rules_file, ip_data)
+        rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data)
         save_to_csv(rules, "firewall_rules.csv")
     else:
         print("Aucun fichier XML sélectionné. Fin du programme.")
     
-    
 if __name__ == "__main__":
-    tk.Tk().withdraw()  # Empêche l'affichage de la fenêtre Tkinter
+    tk.Tk().withdraw()
     main()
