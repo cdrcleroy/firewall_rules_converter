@@ -1,5 +1,5 @@
-# Ignorer les fichiers CSV
-*.csv
+# Ignorer les fichiers XLSX
+*.xlsx
 
 # Ignorer les fichiers XML
 *.xml

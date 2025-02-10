@@ -7,11 +7,14 @@ Contact : cdrc.leroy@gmail.com
 import tkinter as tk
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
-import csv
 import re
 import time
 from tqdm import tqdm
 import sys
+import openpyxl
+from openpyxl.styles import Font
+from openpyxl.worksheet.filters import AutoFilter
+from openpyxl.styles import PatternFill
 
 WATERMARK = "© 2025 - Développé par Cedric Leroy - firewall_rules_converter"
 
@@ -24,10 +27,10 @@ def select_file(file_type):
     return file_path if file_path else None
 
 def select_output_file():
-    """Ouvre un explorateur de fichiers pour choisir l'emplacement et le nom du fichier CSV de sortie."""
-    print("Choisissez un emplacement et un nom pour le fichier CSV (nom par défaut : firewall_rules.csv)")
-    file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], title="Enregistrer le fichier CSV")
-    return file_path if file_path else "firewall_rules.csv"
+    """Ouvre un explorateur de fichiers pour choisir l'emplacement et le nom du fichier XLSX de sortie."""
+    default_filename = "firewall_rules.xlsx"
+    file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")], title="Enregistrer le fichier XLSX", initialfile=default_filename)
+    return file_path if file_path else default_filename
 
 def get_text(element, default=""):
     """Récupère le texte d'un élément XML avec une valeur par défaut."""
@@ -136,21 +139,39 @@ def parse_firewall_rules(xml_file, ip_data, service_data, position_data, ip_load
     print("Traitement terminé avec succès.")
     return rules
 
-def save_to_csv(rules, output_file):
-    """Sauvegarde les règles extraites dans un fichier CSV formaté pour Excel."""
+def save_to_excel(rules, output_file):
     if not rules:
         print("Aucune règle à sauvegarder.")
         return
     
     fieldnames = ["ID", "Name", "Description", "IPFamily", "Status", "PolicyType", "Action", "LogTraffic", "SourceZones", "DestinationZones", "Schedule", "Exclusions", "SourceNetworks", "Source Network IP", "DestinationNetworks", "Destination Network IP", "Services", "Destination Ports", "Protocols"]
     
-    with open(output_file, "w", newline="", encoding="utf-8-sig") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
-        writer.writeheader()
-        writer.writerows(rules)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Firewall Rules"
+    ws.append(fieldnames)
     
-    print(f"Fichier CSV généré : {output_file}")
-
+    for col_num, column_title in enumerate(fieldnames, 1):
+        cell = ws.cell(row=1, column=col_num, value=column_title)
+        cell.font = Font(bold=True)
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(len(column_title) + 2, 15)
+    
+    fill_grey = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+    for row_idx, rule in enumerate(rules, start=2):
+        row_values = [rule.get(field, "N/A") for field in fieldnames]
+        ws.append(row_values)
+        if row_idx % 2 == 0:  # Appliquer la couleur de fond toutes les deux lignes
+            for col_idx in range(1, len(fieldnames) + 1):
+                ws.cell(row=row_idx, column=col_idx).fill = fill_grey
+        
+    ws.auto_filter.ref = ws.dimensions    
+        
+    try:
+        wb.save(output_file)
+        print(f"✅ Fichier Excel enregistré : {output_file}")
+    except Exception as e:
+        print(f"❌ Erreur : {e}")
+        
 def main():
     print("=== Menu de Chargement des Fichiers Firewall ===")
     print("Choisissez un fichier de règles firewall :")
@@ -173,7 +194,7 @@ def main():
     output_file = select_output_file()
     
     rules = parse_firewall_rules(firewall_rules_file, ip_data, service_data, position_data, ip_loaded)
-    save_to_csv(rules, output_file)
+    save_to_excel(rules, output_file)
     
 if __name__ == "__main__":
     tk.Tk().withdraw()

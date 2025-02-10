@@ -1,14 +1,14 @@
 # 🔥 Firewall Rules Converter
 
 ## 📌 Description
-Firewall Rules Converter est un outil permettant d'analyser et de convertir des fichiers XML contenant des règles de firewall en un fichier CSV compatible avec Excel. Il offre la possibilité de croiser ces règles avec des fichiers d'adresses IP, de services et de positions (les id de chaque règle).
+Firewall Rules Converter est un outil permettant d'analyser et de convertir des fichiers XML contenant des règles de firewall en un fichier XLSX compatible avec Excel. Il offre la possibilité de croiser ces règles avec des fichiers d'adresses IP, de services et de positions (les id de chaque règle).
 
 ## 🚀 Fonctionnalités
 - 📂 Chargement d'un fichier XML contenant les règles de firewall.
 - 🔄 Option pour croiser les règles avec un fichier d'adresses IP.
 - 📡 Option pour croiser les règles avec un fichier de services.
 - 🔢 Option pour croiser les règles avec un fichier de positions.
-- 📊 Exportation des résultats au format **CSV** (compatible Excel).
+- 📊 Exportation des résultats au format **XLSX** (compatible Excel).
 - 🎛 Interface CLI avec messages informatifs et barre de progression.
 - 🎨 Icône personnalisée et métadonnées intégrées dans l'exécutable.
 
@@ -27,11 +27,11 @@ Aucune installation spécifique n'est requise. L'outil est fourni sous forme d'u
    - Choisissez le fichier des règles firewall (XML).
    - Optionnellement, ajoutez un fichier d'IP, de services et/ou de positions.
 
-3️⃣ **Choisir l'emplacement du fichier CSV de sortie**.
+3️⃣ **Choisir l'emplacement du fichier XLSX de sortie**.
 
 4️⃣ **Lancer le traitement** : L'outil affichera une barre de progression.
 
-5️⃣ **Ouvrir le fichier CSV** dans Excel ou un autre tableur.
+5️⃣ **Ouvrir le fichier XLSX** dans Excel ou un autre tableur.
 
 ## 📝 Format des fichiers supportés
 ### 📄 **Fichier de règles firewall (XML)**
@@ -46,8 +46,8 @@ Associe les services référencés dans les règles à leurs détails (ports et 
 ### 🔢 **Fichier de positions (texte brut ou XML)**
 Associe chaque règle à un ID et une position définis dans l'export du firewall.
 
-## 📂 Structure du CSV généré
-Le fichier CSV contient les colonnes suivantes :
+## 📂 Structure du XLSX généré
+Le fichier XLSX contient les colonnes suivantes :
 - **ID** : Identifiant de la règle (si fichier de positions chargé)
 - **Name** : Nom de la règle
 - **Description** : Description de la règle
@@ -69,8 +69,8 @@ Si le fichier d'IP n'a pas été chargé ou si aucune correspondance n'a été t
 ### 💬 **Puis-je utiliser cet outil sur Mac ou Linux ?**
 Actuellement, seule une version Windows sous forme d'exécutable est fournie.
 
-### 💬 **Puis-je modifier le CSV généré ?**
-Oui ! Le fichier CSV est ouvertement éditable dans Excel, LibreOffice Calc ou tout autre tableur.
+### 💬 **Puis-je modifier le XLSX généré ?**
+Oui ! Le fichier XLSX est ouvertement éditable dans Excel, LibreOffice Calc ou tout autre tableur.
 
 ## 📜 Licence
 Cet outil est fourni sous licence **privée**. Toute redistribution ou modification sans autorisation est interdite.
