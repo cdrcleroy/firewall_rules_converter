@@ -15,6 +15,7 @@ import openpyxl
 from openpyxl.styles import Font
 from openpyxl.worksheet.filters import AutoFilter
 from openpyxl.styles import PatternFill
+from datetime import datetime
 
 WATERMARK = "© 2025 - Développé par Cedric Leroy - firewall_rules_converter"
 
@@ -28,7 +29,7 @@ def select_file(file_type):
 
 def select_output_file():
     """Ouvre un explorateur de fichiers pour choisir l'emplacement et le nom du fichier XLSX de sortie."""
-    default_filename = "firewall_rules.xlsx"
+    default_filename = "firewall_" + datetime.today().strftime('%Y-%d-%m') + ".xlsx"
     file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")], title="Enregistrer le fichier XLSX", initialfile=default_filename)
     return file_path if file_path else default_filename
 
