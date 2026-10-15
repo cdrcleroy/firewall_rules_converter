@@ -1,21 +1,31 @@
-# Ignorer les fichiers XLSX
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Données / exports sensibles ou générés
+*.xml
 *.xlsx
 
-# Ignorer les fichiers XML
-*.xml
-
-# Ignorer les fichiers de logs
+# Logs
 *.log
 
-# Ignorer les fichiers temporaires de l'éditeur
-*.swp
-*.swo
-.DS_Store
-
-# Ignorer le dossier des dépendances (exemple : Node.js, Python)
-node_modules/
-venv/
-
-# Ignorer les fichiers de configuration IDE
+# IDE / éditeurs
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
